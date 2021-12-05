@@ -120,33 +120,98 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			System.arraycopy(plays, numPlays, legalPlayLists[numPlays], 0, remainingPlays);
 			double maxAverageScore = Double.NEGATIVE_INFINITY; // maximum average score found for moves so far
 			ArrayList<Integer> bestPlays = new ArrayList<Integer>(); // all plays yielding the maximum average score
+
+			int simCount = 0;
+			int scoreTotal = 0;
+			int play = legalPlayLists[numPlays][0];
+
+//			if (remainingPlays >= 16) {
+//
+//				if (grid[0][0] == null) {
+//					makePlay(card, 0, 0, cardOnRank);
+//					int[] playPos = { 0, 0 };
+//					
+//					plays[numPlays] = plays[numPlays];
+//					plays[numPlays] = 0;
+//					
+//					return playPos;
+//
+//				} else if (grid[1][1] == null) {
+//					makePlay(card, 1, 1, cardOnRank);
+//					int[] playPos = { 1, 1 };
+//					return playPos;
+//
+//				} else if (grid[2][2] == null) {
+//					makePlay(card, 2, 2, cardOnRank);
+//					int[] playPos = { 2, 2 };
+//					return playPos;
+//
+//				} else if (grid[3][3] == null) {
+//					makePlay(card, 3, 3, cardOnRank);
+//					int[] playPos = { 3, 3 };
+//					return playPos;
+//
+//				} else if (grid[4][4] == null) {
+//					makePlay(card, 4, 4, cardOnRank);
+//					int[] playPos = { 4, 4 };
+//					return playPos;
+//
+//				} else if (grid[0][4] == null) {
+//					makePlay(card, 0, 4, cardOnRank);
+//					int[] playPos = { 0, 4 };
+//					return playPos;
+//
+//				} else if (grid[1][3] == null) {
+//					makePlay(card, 1, 3, cardOnRank);
+//					int[] playPos = { 1, 3 };
+//					return playPos;
+//
+//				} else if (grid[3][1] == null) {
+//					makePlay(card, 3, 1, cardOnRank);
+//					int[] playPos = { 3, 1 };
+//					return playPos;
+//
+//				} else if (grid[4][0] == null) {
+//					makePlay(card, 4, 0, cardOnRank);
+//					int[] playPos = { 4, 0 };
+//					return playPos;
+//
+//				}
+
+//			} else {
+
 			for (int i = 0; i < remainingPlays; i++) { // for each legal play position
-				int play = legalPlayLists[numPlays][i];
 				long startTime = System.currentTimeMillis();
 				long endTime = startTime + millisPerMoveEval; // compute when MC simulations should end
 				// for (int j=0; j<25; i++)
 				// System.out.println(Arrays.toString(legalPlayLists[j]));
 				makePlay(card, play / SIZE, play % SIZE, cardOnRank); // play the card at the empty position
 
-				int simCount = 0;
-				int scoreTotal = 0;
-				while (System.currentTimeMillis() < endTime) { // perform as many MC simulations as possible through the
+				while (System.currentTimeMillis() < endTime) { // perform as many MC simulations as possible through
+																// the
 																// allotted time
 					// Perform a Monte Carlo simulation of random play to the depth limit or game
 					// end, whichever comes first.
+//						if (remainingPlays <= 13) {
 					scoreTotal += simPlay(depthLimit, cardOnRank, play); // accumulate MC simulation scores
 					simCount++; // increment count of MC simulations
-				}
-				undoPlay(cardOnRank); // undo the play under evaluation
-				// update (if necessary) the maximum average score and the list of best plays
-				double averageScore = (double) scoreTotal / simCount;
-				if (averageScore >= maxAverageScore) {
-					if (averageScore > maxAverageScore)
-						bestPlays.clear();
-					bestPlays.add(play);
-					maxAverageScore = averageScore;
+//						} else {
+//							scoreTotal = system.getScore(grid);
+//							simCount++; // increment count of MC simulations
+//						}
 				}
 			}
+
+			undoPlay(cardOnRank); // undo the play under evaluation
+			// update (if necessary) the maximum average score and the list of best plays
+			double averageScore = (double) scoreTotal / simCount;
+			if (averageScore >= maxAverageScore) {
+				if (averageScore > maxAverageScore)
+					bestPlays.clear();
+				bestPlays.add(play);
+				maxAverageScore = averageScore;
+			}
+
 			System.out.println(Arrays.toString(legalPlayLists[numPlays]));
 			int bestPlay = bestPlays.get(random.nextInt(bestPlays.size())); // choose a best play (breaking ties
 																			// randomly)
@@ -157,11 +222,14 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				bestPlayIndex++;
 			plays[bestPlayIndex] = plays[numPlays];
 			plays[numPlays] = bestPlay;
-		}
+//			}
 
-		int[] playPos = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
-		makePlay(card, playPos[0], playPos[1], cardOnRank); // make the chosen play (not undoing this time)
-		return playPos; // return the chosen play
+			int[] playPos = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
+			makePlay(card, playPos[0], playPos[1], cardOnRank); // make the chosen play (not undoing this time)
+			return playPos; // return the chosen play
+		}
+//		return null;
+
 	}
 
 	/**
@@ -214,6 +282,8 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 					int play = legalPlayLists[numPlays][c2];
 					makePlay(card, play / SIZE, play % SIZE, cardOnRank);
 				}
+
+//				score += system.getScore(grid);
 			}
 			score = system.getScore(grid);
 
