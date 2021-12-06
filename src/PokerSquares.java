@@ -157,6 +157,7 @@ public class PokerSquares {
 		double scoreMean = 0;
 		int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
 		for (int i = 0; i < numGames; i++) {
+			long startTime = System.currentTimeMillis();
 			setSeed(startSeed + i);
 			int score = play();
 			scores[i] = score;
@@ -164,6 +165,9 @@ public class PokerSquares {
 			if (scores[i] < min) min = scores[i];
 			if (scores[i] > max) max = scores[i];
 			System.out.println(score);
+			long endTime = System.currentTimeMillis();
+			long timeTaken = startTime - endTime;
+			System.out.println(timeTaken);	
 		}
 		scoreMean /= numGames;
 		double scoreStdDev = 0;
