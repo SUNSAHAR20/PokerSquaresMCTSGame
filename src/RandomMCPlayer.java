@@ -1,7 +1,6 @@
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 /**
@@ -22,29 +21,41 @@ import java.util.Random;
  */
 public class RandomMCPlayer implements PokerSquaresPlayer {
 
-	private final int SIZE = 5; // number of rows/columns in square grid
-	private final int NUM_POS = SIZE * SIZE; // number of positions in square grid
-	private final int NUM_CARDS = Card.NUM_CARDS; // number of cards in deck
+	private final int GRIDSIZE = 5; // number of rows/columns in square grid
+	private final int NUM_POS_IN_GRID = GRIDSIZE * GRIDSIZE; // number of positions in square grid
+	private final int NUM_CARDS_IN_DECK = Card.NUM_CARDS; // number of cards in deck
 	private Random random = new Random(); // pseudorandom number generator for Monte Carlo simulation
-	private int[] plays = new int[NUM_POS]; // positions of plays so far (index 0 through numPlays - 1) recorded as
-											// integers using row-major indices.
+	private int[] plays_indices = new int[NUM_POS_IN_GRID]; // positions of plays so far (index 0 through
+															// NUM_CARDS_PLAYED_IN_GRID - 1) recorded as
+	// integers using row-major indices.
 	// row-major indices: play (r, c) is recorded as a single integer r * SIZE + c
 	// (See http://en.wikipedia.org/wiki/Row-major_order)
-	// From plays index [numPlays] onward, we maintain a list of yet unplayed
+	// From plays index [NUM_CARDS_PLAYED_IN_GRID] onward, we maintain a list of yet
+	// unplayed
 	// positions.
-	private int numPlays = 0; // number of Cards played into the grid so far
+	private int NUM_CARDS_PLAYED_IN_GRID = 0; // number of Cards played into the grid so far
 	private PokerSquaresPointSystem system; // point system
-	private int depthLimit = 2; // default depth limit for Random Monte Carlo (MC) play
-	private Card[][] grid = new Card[SIZE][SIZE]; // grid with Card objects or null (for empty positions)
-	private Card[] simDeck = Card.getAllCards(); // a list of all Cards. As we learn the index of cards in the play
-													// deck,
-													// we swap each dealt card to its correct index. Thus, from index
-													// numPlays
-													// onward, we maintain a list of undealt cards for MC simulation.
-	public String[] suitNames = Card.getSuitNames();
-	public String[] rankNames = Card.getRankNames();
+	private int depthLimit = 4; // default depth limit for Random Monte Carlo (MC) play
+	private Card[][] pokersGrid = new Card[GRIDSIZE][GRIDSIZE]; // grid with Card objects or null (for empty positions)
+	private static Card[] simDeck = Card.getAllCards(); // a list of all Cards. As we learn the index of cards in the
+														// play
+	// deck,
+	// we swap each dealt card to its correct index. Thus, from index
+	// NUM_CARDS_PLAYED_IN_GRID
+	// onward, we maintain a list of undealt cards for MC simulation.
+	public static String[] suitNames = Card.getSuitNames();
+	public static String[] rankNames = Card.getRankNames();
+	private static HashMap<String, Integer> CARD_INDICES_ON_RANK = new HashMap<String, Integer>();
 
-	private int[][] legalPlayLists = new int[NUM_POS][NUM_POS]; // stores legal play lists indexed by numPlays (depth)
+	static {
+
+		// create mapping from String representations to Card objects
+		for (Card card : simDeck)
+			CARD_INDICES_ON_RANK.put(card.toString(), -1);
+	}
+
+	private int[][] possibleGridPos = new int[NUM_POS_IN_GRID][NUM_POS_IN_GRID]; // stores legal play lists indexed by
+																					// NUM_CARDS_PLAYED_IN_GRID (depth)
 	// (This avoids constant allocation/deallocation of such lists during the
 	// selections of MC simulations.)
 
@@ -72,14 +83,14 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 	@Override
 	public void init() {
 		// clear grid
-		for (int row = 0; row < SIZE; row++)
-			for (int col = 0; col < SIZE; col++)
-				grid[row][col] = null;
-		// reset numPlays
-		numPlays = 0;
+		for (int row = 0; row < GRIDSIZE; row++)
+			for (int col = 0; col < GRIDSIZE; col++)
+				pokersGrid[row][col] = null;
+		// reset NUM_CARDS_PLAYED_IN_GRID
+		NUM_CARDS_PLAYED_IN_GRID = 0;
 		// (re)initialize list of play positions (row-major ordering)
-		for (int i = 0; i < NUM_POS; i++)
-			plays[i] = i;
+		for (int i = 0; i < NUM_POS_IN_GRID; i++)
+			plays_indices[i] = i;
 	}
 
 	/*
@@ -88,7 +99,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 	 * @see PokerSquaresPlayer#getPlay(Card, long)
 	 */
 	@Override
-	public int[] getPlay(Card card, long millisRemaining, HashMap cardOnRank) {
+	public int[] getPlay(Card card, long millisRemaining) {
 		/*
 		 * With this algorithm, the player chooses the legal play that has the highest
 		 * expected score outcome. This outcome is estimated as follows: For each move,
@@ -103,48 +114,53 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		// match simDeck to actual play event; in this way, all indices forward from the
 		// card contain a list of
 		// undealt Cards in some permutation.
-		int cardIndex = numPlays;
+		int cardIndex = NUM_CARDS_PLAYED_IN_GRID;
 		while (!card.equals(simDeck[cardIndex]))
 			cardIndex++;
-		simDeck[cardIndex] = simDeck[numPlays];
-		simDeck[numPlays] = card;
+		simDeck[cardIndex] = simDeck[NUM_CARDS_PLAYED_IN_GRID];
+		simDeck[NUM_CARDS_PLAYED_IN_GRID] = card;
 
-		if (numPlays < 5) {
-			int[] playPos = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
-			playPos[0] = numPlays;
-			playPos[1] = numPlays;
-			makePlay(card, playPos[0], playPos[1], cardOnRank); // make the chosen play (not undoing this time)
+		if (NUM_CARDS_PLAYED_IN_GRID < 5) {
+			int[] playPos = { plays_indices[NUM_CARDS_PLAYED_IN_GRID] / GRIDSIZE,
+					plays_indices[NUM_CARDS_PLAYED_IN_GRID] % GRIDSIZE }; // decode it into row and column
+			playPos[0] = NUM_CARDS_PLAYED_IN_GRID;
+			playPos[1] = NUM_CARDS_PLAYED_IN_GRID;
+			makePlay(card, playPos[0], playPos[1]); // make the chosen play (not undoing this time)
+			int indices = playPos[0] * GRIDSIZE + playPos[1];
+
+			CARD_INDICES_ON_RANK.put(card.toString(), indices);
 			return playPos; // return the chosen play
 		}
 
-		if (numPlays < 24) { // not the forced last play
+		else if (NUM_CARDS_PLAYED_IN_GRID < 24) { // not the forced last play
 			// compute average time per move evaluation
-			int remainingPlays = NUM_POS - numPlays; // ignores triviality of last play to keep a conservative margin
-														// for game completion
+			int remainingPlays = NUM_POS_IN_GRID - NUM_CARDS_PLAYED_IN_GRID; // ignores triviality of last play to keep
+																				// a conservative margin
+			// for game completion
 			long millisPerPlay = millisRemaining / remainingPlays; // dividing time evenly with future getPlay() calls
 			long millisPerMoveEval = millisPerPlay / remainingPlays; // dividing time evenly across moves now considered
 			// copy the play positions (row-major indices) that are empty
 
-			System.arraycopy(plays, numPlays, legalPlayLists[numPlays], 0, remainingPlays);
+			System.arraycopy(plays_indices, NUM_CARDS_PLAYED_IN_GRID, possibleGridPos[NUM_CARDS_PLAYED_IN_GRID], 0,
+					remainingPlays);
 			double maxAverageScore = Double.NEGATIVE_INFINITY; // maximum average score found for moves so far
 			ArrayList<Integer> bestPlays = new ArrayList<Integer>(); // all plays yielding the maximum average score
 			for (int i = 0; i < remainingPlays; i++) { // for each legal play position
-				int play = legalPlayLists[numPlays][i];
+				int play = possibleGridPos[NUM_CARDS_PLAYED_IN_GRID][i];
 				long startTime = System.currentTimeMillis();
 				long endTime = startTime + millisPerMoveEval; // compute when MC simulations should end
-				// for (int j=0; j<25; i++)
-				// System.out.println(Arrays.toString(legalPlayLists[j]));
-				makePlay(card, play / SIZE, play % SIZE, cardOnRank); // play the card at the empty position
+
+				makePlay(card, play / GRIDSIZE, play % GRIDSIZE); // play the card at the empty position
 				int simCount = 0;
 				int scoreTotal = 0;
 				while (System.currentTimeMillis() < endTime) { // perform as many MC simulations as possible through the
 					// allotted time
 					// Perform a Monte Carlo simulation of random play to the depth limit or game
 					// end, whichever comes first.
-					scoreTotal += simPlay(depthLimit, cardOnRank, play); // accumulate MC simulation scores
+					scoreTotal += simPlay(depthLimit, play); // accumulate MC simulation scores
 					simCount++; // increment count of MC simulations
 				}
-				undoPlay(cardOnRank); // undo the play under evaluation
+				undoPlay(); // undo the play under evaluation
 				// update (if necessary) the maximum average score and the list of best plays
 				double averageScore = (double) scoreTotal / simCount;
 				if (averageScore >= maxAverageScore) {
@@ -154,20 +170,26 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 					maxAverageScore = averageScore;
 				}
 			}
-			System.out.println(Arrays.toString(legalPlayLists[numPlays]));
+			System.out.println(Arrays.toString(possibleGridPos[NUM_CARDS_PLAYED_IN_GRID]));
 			int bestPlay = bestPlays.get(random.nextInt(bestPlays.size())); // choose a best play (breaking ties
 																			// randomly)
 			// update our list of plays, recording the chosen play in its sequential
-			// position; all onward from numPlays are empty positions
-			int bestPlayIndex = numPlays;
-			while (plays[bestPlayIndex] != bestPlay)
+			// position; all onward from NUM_CARDS_PLAYED_IN_GRID are empty positions
+			int bestPlayIndex = NUM_CARDS_PLAYED_IN_GRID;
+			while (plays_indices[bestPlayIndex] != bestPlay)
 				bestPlayIndex++;
-			plays[bestPlayIndex] = plays[numPlays];
-			plays[numPlays] = bestPlay;
+			plays_indices[bestPlayIndex] = plays_indices[NUM_CARDS_PLAYED_IN_GRID];
+			plays_indices[NUM_CARDS_PLAYED_IN_GRID] = bestPlay;
 		}
-		int[] playPos = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
 
-		makePlay(card, playPos[0], playPos[1], cardOnRank); // make the chosen play (not undoing this time)
+		int[] playPos = { plays_indices[NUM_CARDS_PLAYED_IN_GRID] / GRIDSIZE,
+				plays_indices[NUM_CARDS_PLAYED_IN_GRID] % GRIDSIZE }; // decode it into row and column
+
+		makePlay(card, playPos[0], playPos[1]); // make the chosen play (not undoing this time)
+		int indices = playPos[0] * GRIDSIZE + playPos[1];
+
+		CARD_INDICES_ON_RANK.put(card.toString(), indices);
+
 		return playPos; // return the chosen play
 	}
 
@@ -178,19 +200,19 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 	 * @param depthLimit - how many simulated random plays to perform
 	 * @return resulting grid score after random MC simulation to given depthLimit
 	 */
-	private int simPlay(int depthLimit, HashMap cardOnRank, int actualCard) {
+	private int simPlay(int depthLimit, int actualCard) {
 		if (depthLimit == 0) { // with zero depth limit, return current score
-			return system.getScore(grid);
+			return system.getScore(pokersGrid);
 		} else { // up to the non-zero depth limit or to game end, iteratively make the given
 					// number of random plays
 			int score = Integer.MIN_VALUE;
-			int maxScore = Integer.MIN_VALUE;
-			int depth = Math.min(depthLimit, NUM_POS - numPlays); // compute real depth limit, taking into account game
-																	// end
+			int depth = Math.min(depthLimit, NUM_POS_IN_GRID - NUM_CARDS_PLAYED_IN_GRID); // compute real depth limit,
+																							// taking into account game
+			// end
 
 			for (int d = 0; d < depth; d++) {
 				// generate a random card draw
-				int c = random.nextInt(NUM_CARDS - numPlays) + numPlays;
+				int c = random.nextInt(NUM_CARDS_IN_DECK - NUM_CARDS_PLAYED_IN_GRID) + NUM_CARDS_PLAYED_IN_GRID;
 				Card card = simDeck[c];
 				// choose a random play from the legal plays
 				String temp[] = new String[4];
@@ -198,11 +220,11 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				for (int s = 0; s < suitNames.length; s++) {
 					temp[s] = rankNames[card.getRank()] + suitNames[s];
 					String tempCard = rankNames[card.getRank()] + suitNames[s];
-					int indicesBasedOnRank = (int) cardOnRank.get(rankNames[card.getRank()] + suitNames[s]);
+					int indicesBasedOnRank = (int) CARD_INDICES_ON_RANK.get(rankNames[card.getRank()] + suitNames[s]);
 
 //					If card from temp array is found then apply PPS and place the card
 					if (indicesBasedOnRank != -1 && tempCard != card.toString()) {
-						isCardPlaced = proximityPostitionPerSimulation(indicesBasedOnRank, cardOnRank, card);
+						isCardPlaced = proximityPostitionPerSimulation(indicesBasedOnRank, card);
 						break;
 					} else {
 						isCardPlaced = false;
@@ -212,18 +234,19 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 
 				if (!isCardPlaced) {
 					// random - for positon remaning
-					int remainingPlays = NUM_POS - numPlays;
-					System.arraycopy(plays, numPlays, legalPlayLists[numPlays], 0, remainingPlays);
+					int remainingPlays = NUM_POS_IN_GRID - NUM_CARDS_PLAYED_IN_GRID;
+					System.arraycopy(plays_indices, NUM_CARDS_PLAYED_IN_GRID, possibleGridPos[NUM_CARDS_PLAYED_IN_GRID],
+							0, remainingPlays);
 					int c2 = random.nextInt(remainingPlays);
-					int play = legalPlayLists[numPlays][c2];
-					makePlay(card, play / SIZE, play % SIZE, cardOnRank);
+					int play = possibleGridPos[NUM_CARDS_PLAYED_IN_GRID][c2];
+					makePlay(card, play / GRIDSIZE, play % GRIDSIZE);
 				}
 			}
-			score = system.getScore(grid);
+			score = system.getScore(pokersGrid);
 
 			// Undo MC plays.
 			for (int d = 0; d < depth; d++) {
-				undoPlay(cardOnRank);
+				undoPlay();
 			}
 
 			return score;
@@ -231,41 +254,36 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 
 	}
 
-	public void makePlay(Card card, int row, int col, HashMap cardOnRank) {
+	public void makePlay(Card card, int row, int col) {
 
-		int indices = row * SIZE + col;
-		cardOnRank.put(card.toString(), indices);
+		int indices = row * GRIDSIZE + col;
+		CARD_INDICES_ON_RANK.put(card.toString(), indices);
 
 		// match simDeck to event
-		int cardIndex = numPlays;
+		int cardIndex = NUM_CARDS_PLAYED_IN_GRID;
 		while (!card.equals(simDeck[cardIndex]))
 			cardIndex++;
-		simDeck[cardIndex] = simDeck[numPlays];
-		simDeck[numPlays] = card;
+		simDeck[cardIndex] = simDeck[NUM_CARDS_PLAYED_IN_GRID];
+		simDeck[NUM_CARDS_PLAYED_IN_GRID] = card;
 
 		// update plays to reflect chosen play in sequence
-		grid[row][col] = card;
-//		system.printGrid(grid); // makeplaygrid
-//		System.out.println();
-		int play = row * SIZE + col;
+		pokersGrid[row][col] = card;
+		int play = row * GRIDSIZE + col;
 		int j = 0;
-		while (plays[j] != play)
+		while (plays_indices[j] != play)
 			j++;
-		plays[j] = plays[numPlays];
-		plays[numPlays] = play;
+		plays_indices[j] = plays_indices[NUM_CARDS_PLAYED_IN_GRID];
+		plays_indices[NUM_CARDS_PLAYED_IN_GRID] = play;
 
 		// increment the number of plays taken
-		numPlays++;
+		NUM_CARDS_PLAYED_IN_GRID++;
 	}
 
-	public void undoPlay(HashMap<String, Integer> cardOnRank) { // undo the previous play
-		numPlays--;
-		int play = plays[numPlays];
+	public void undoPlay() { // undo the previous play
+		NUM_CARDS_PLAYED_IN_GRID--;
+		int play = plays_indices[NUM_CARDS_PLAYED_IN_GRID];
 
-		cardOnRank.put(grid[play / SIZE][play % SIZE].toString(), -1);
-//		grid[play / SIZE][play % SIZE] = null;
-//		system.printGrid(grid); // makeplaygrid
-//		System.out.println();
+		CARD_INDICES_ON_RANK.put(pokersGrid[play / GRIDSIZE][play % GRIDSIZE].toString(), -1);
 
 	}
 
@@ -289,11 +307,11 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		return "RandomMCPlayerDepth" + depthLimit;
 	}
 
-	public boolean proximityPostitionPerSimulation(int indicesBasedOnRank, HashMap cardOnRank, Card card) {
+	public boolean proximityPostitionPerSimulation(int indicesBasedOnRank, Card card) {
 //		Main logic PPS
 
-		int row = indicesBasedOnRank / SIZE;
-		int col = indicesBasedOnRank % SIZE;
+		int row = indicesBasedOnRank / GRIDSIZE;
+		int col = indicesBasedOnRank % GRIDSIZE;
 
 //		PPS formula
 
@@ -308,7 +326,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		if (tcell > 0) {
 			int topcell = ((row - 1) * 5) + col;
 			boolean cardfound = false;
-			for (Object value : cardOnRank.values()) {
+			for (Object value : CARD_INDICES_ON_RANK.values()) {
 				int actualIndicies = (Integer) value;
 				if (actualIndicies == topcell) {
 					cardfound = true;
@@ -318,17 +336,17 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			}
 
 			if (!cardfound) {
-				int topcellr = topcell / SIZE;
-				int topcellc = topcell % SIZE;
+				int topcellr = topcell / GRIDSIZE;
+				int topcellc = topcell % GRIDSIZE;
 				checkNextAdjacentPostion = false;
-				makePlay(card, topcellr, topcellc, cardOnRank);
+				makePlay(card, topcellr, topcellc);
 				isCardPlaced = true;
 			}
 		}
 		if (bcell < 5 && checkNextAdjacentPostion) {
 			int bottomcell = ((row + 1) * 5) + col;
 			boolean cardfound = false;
-			for (Object value : cardOnRank.values()) {
+			for (Object value : CARD_INDICES_ON_RANK.values()) {
 				int actualIndicies = (Integer) value;
 				if (actualIndicies == bottomcell) {
 					cardfound = true;
@@ -340,10 +358,10 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			}
 
 			if (!cardfound) {
-				int bottomcellr = bottomcell / SIZE;
-				int bottomcellc = bottomcell % SIZE;
+				int bottomcellr = bottomcell / GRIDSIZE;
+				int bottomcellc = bottomcell % GRIDSIZE;
 				checkNextAdjacentPostion = false;
-				makePlay(card, bottomcellr, bottomcellc, cardOnRank);
+				makePlay(card, bottomcellr, bottomcellc);
 				isCardPlaced = true;
 			}
 		}
@@ -351,7 +369,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		if (lcell > 0 && checkNextAdjacentPostion) {
 			int leftcell = (row * 5) + (col - 1);
 			boolean cardfound = false;
-			for (Object value : cardOnRank.values()) {
+			for (Object value : CARD_INDICES_ON_RANK.values()) {
 				int actualIndicies = (Integer) value;
 				if (actualIndicies == leftcell) {
 					cardfound = true;
@@ -363,10 +381,10 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			}
 
 			if (!cardfound) {
-				int leftcellr = leftcell / SIZE;
-				int leftcellc = leftcell % SIZE;
+				int leftcellr = leftcell / GRIDSIZE;
+				int leftcellc = leftcell % GRIDSIZE;
 				checkNextAdjacentPostion = false;
-				makePlay(card, leftcellr, leftcellc, cardOnRank);
+				makePlay(card, leftcellr, leftcellc);
 				isCardPlaced = true;
 			}
 		}
@@ -374,7 +392,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		if (rcell < 5 && checkNextAdjacentPostion) {
 			int rightcell = (row * 5) + (col + 1);
 			boolean cardfound = false;
-			for (Object value : cardOnRank.values()) {
+			for (Object value : CARD_INDICES_ON_RANK.values()) {
 				int actualIndicies = (Integer) value;
 				if (actualIndicies == rightcell) {
 					cardfound = true;
@@ -386,10 +404,10 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			}
 
 			if (!cardfound) {
-				int rightcellr = rightcell / SIZE;
-				int rightcellc = rightcell % SIZE;
+				int rightcellr = rightcell / GRIDSIZE;
+				int rightcellc = rightcell % GRIDSIZE;
 				checkNextAdjacentPostion = false;
-				makePlay(card, rightcellr, rightcellc, cardOnRank);
+				makePlay(card, rightcellr, rightcellc);
 				isCardPlaced = true;
 			}
 		}

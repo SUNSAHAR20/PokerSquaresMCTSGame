@@ -26,12 +26,6 @@ public class Card {
 	private static String[] rankNames = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "T", "J", "Q", "K"}; // all single-character rank names
 	private static String[] suitNames = {"C", "D", "H", "S"}; // all single-character suit names
 	private static HashMap<String, Card> cardMap = new HashMap<String, Card>(); // mapping from String representations of cards to Card objects
-
-	
-//	Custom array based on rank
-	private static Card[] allCardsBasedOnRank; // an array of all cards in the deck
-	private static HashMap<String, Integer> cardMapBasedOnRank = new HashMap<String, Integer>(); // mapping from String representations of cards to Card objects
-
 	
 	static {
 		// upon loading the Card class, initialize 52-card French deck cards
@@ -46,17 +40,6 @@ public class Card {
 		// create mapping from String representations to Card objects
 		for (Card card : allCards)
 			cardMap.put(card.toString(), card);
-		
-        //Custom hash - based on rank
-		allCardsBasedOnRank = new Card[rankNames.length * suitNames.length];
-		int j = 0;
-		for (int rank= 0; rank < rankNames.length; rank++) 
-			for (int suit = 0; suit  < suitNames.length; suit++)
-				allCardsBasedOnRank[j++] = new Card(rank, suit);
-		
-		// create mapping from String representations to Card objects
-		for (Card card : allCardsBasedOnRank)
-			cardMapBasedOnRank.put(card.toString(), -1);
 	}
 	
 	/**
@@ -100,21 +83,6 @@ public class Card {
 	public static Card[] getAllCards() {
 		return allCards.clone();
 	}
-	
-    // Custom array
-	public static Card getCardBasedOnRank(int cardId) {
-		return allCardsBasedOnRank[cardId];
-	}
-
-	/**
-	 * Get an array containing all cards based on rank.
-	 * @return an array containing all cards based on rank
-	 */
-	public static HashMap getCardMapBasedOnRank() {
-		
-		return cardMapBasedOnRank;
-	}
-
 
 	// Non-static definitions
 	

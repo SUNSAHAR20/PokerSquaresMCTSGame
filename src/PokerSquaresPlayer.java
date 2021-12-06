@@ -37,7 +37,7 @@ public interface PokerSquaresPlayer {
 	 * @param millisRemaining - remaining milliseconds for play in the rest of the player's game.
 	 * @return a 2D int array with the chosen (row, col) position for play of the given card.
 	 */
-	int[] getPlay(Card card, long millisRemaining, HashMap cardOnRank);
+	int[] getPlay(Card card, long millisRemaining);
 	
 	
 	/**
