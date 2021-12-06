@@ -51,8 +51,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 	/**
 	 * Create a Random Monte Carlo player that simulates random play to depth 2.
 	 */
-	public RandomMCPlayer() {
-	}
+	
 
 	/**
 	 * Create a Random Monte Carlo player that simulates random play to a given
@@ -120,33 +119,47 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 			System.arraycopy(plays, numPlays, legalPlayLists[numPlays], 0, remainingPlays);
 			double maxAverageScore = Double.NEGATIVE_INFINITY; // maximum average score found for moves so far
 			ArrayList<Integer> bestPlays = new ArrayList<Integer>(); // all plays yielding the maximum average score
+
 			for (int i = 0; i < remainingPlays; i++) { // for each legal play position
-				int play = legalPlayLists[numPlays][i];
 				long startTime = System.currentTimeMillis();
 				long endTime = startTime + millisPerMoveEval; // compute when MC simulations should end
-				// for (int j=0; j<25; i++)
-				// System.out.println(Arrays.toString(legalPlayLists[j]));
-				makePlay(card, play / SIZE, play % SIZE, cardOnRank); // play the card at the empty position
-
+				
 				int simCount = 0;
 				int scoreTotal = 0;
-				while (System.currentTimeMillis() < endTime) { // perform as many MC simulations as possible through the
-																// allotted time
+				int play = legalPlayLists[numPlays][i];
+
+				if (remainingPlays == NUM_POS) {
+					for(int r=0; r<SIZE; r++) {
+						for(int c=0; c<SIZE; c++) {
+							if ((r == c) || ((r + c) == (SIZE - 1))) {
+								int[] playPos = { r, c };
+								makePlay(card, playPos[0], playPos[1], cardOnRank);	
+								} 
+							}
+						}
+					scoreTotal = system.getScore(grid);
+				}
+				
+				makePlay(card, play / SIZE, play % SIZE, cardOnRank); // play the card at the empty position
+	
+				while (System.currentTimeMillis() < endTime) { // perform as many MC simulations as possible through the allotted time
 					// Perform a Monte Carlo simulation of random play to the depth limit or game
 					// end, whichever comes first.
-					scoreTotal += simPlay(depthLimit, cardOnRank, play); // accumulate MC simulation scores
-					simCount++; // increment count of MC simulations
-				}
-				undoPlay(cardOnRank); // undo the play under evaluation
-				// update (if necessary) the maximum average score and the list of best plays
-				double averageScore = (double) scoreTotal / simCount;
-				if (averageScore >= maxAverageScore) {
-					if (averageScore > maxAverageScore)
-						bestPlays.clear();
-					bestPlays.add(play);
-					maxAverageScore = averageScore;
+						scoreTotal += simPlay(depthLimit, cardOnRank, play); // accumulate MC simulation scores
+						simCount++; // increment count of MC simulations
 				}
 			}
+
+			undoPlay(cardOnRank); // undo the play under evaluation
+			// update (if necessary) the maximum average score and the list of best plays
+			double averageScore = (double) scoreTotal / simCount;
+			if (averageScore >= maxAverageScore) {
+				if (averageScore > maxAverageScore)
+					bestPlays.clear();
+				bestPlays.add(play);
+				maxAverageScore = averageScore;
+			}
+	
 			System.out.println(Arrays.toString(legalPlayLists[numPlays]));
 			int bestPlay = bestPlays.get(random.nextInt(bestPlays.size())); // choose a best play (breaking ties
 																			// randomly)
@@ -157,11 +170,11 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				bestPlayIndex++;
 			plays[bestPlayIndex] = plays[numPlays];
 			plays[numPlays] = bestPlay;
-		}
-
-		int[] playPos = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
-		makePlay(card, playPos[0], playPos[1], cardOnRank); // make the chosen play (not undoing this time)
-		return playPos; // return the chosen play
+			
+			int[] playPos2 = { plays[numPlays] / SIZE, plays[numPlays] % SIZE }; // decode it into row and column
+			makePlay(card, playPos2[0], playPos2[1], cardOnRank); // make the chosen play (not undoing this time) // return the chosen play		
+			return playPos2;
+		}		
 	}
 
 	/**
@@ -214,6 +227,8 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 					int play = legalPlayLists[numPlays][c2];
 					makePlay(card, play / SIZE, play % SIZE, cardOnRank);
 				}
+
+//				score += system.getScore(grid);
 			}
 			score = system.getScore(grid);
 
