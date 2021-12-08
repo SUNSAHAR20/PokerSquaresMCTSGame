@@ -120,6 +120,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 		simDeck[cardIndex] = simDeck[NUM_CARDS_PLAYED_IN_GRID];
 		simDeck[NUM_CARDS_PLAYED_IN_GRID] = card;
 
+		//Place the selected card diagonally
 		if (NUM_CARDS_PLAYED_IN_GRID < 5) {
 			int[] playPos = { plays_indices[NUM_CARDS_PLAYED_IN_GRID] / GRIDSIZE,
 					plays_indices[NUM_CARDS_PLAYED_IN_GRID] % GRIDSIZE }; // decode it into row and column
@@ -130,9 +131,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 
 			CARD_INDICES_ON_RANK.put(card.toString(), indices);
 			return playPos; // return the chosen play
-		}
-
-		else if (NUM_CARDS_PLAYED_IN_GRID < 24) { // not the forced last play
+		} else if (NUM_CARDS_PLAYED_IN_GRID < 24) { // not the forced last play
 			// compute average time per move evaluation
 			int remainingPlays = NUM_POS_IN_GRID - NUM_CARDS_PLAYED_IN_GRID; // ignores triviality of last play to keep
 																				// a conservative margin
@@ -218,11 +217,10 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				String temp[] = new String[4];
 				boolean isCardPlaced = false;
 				for (int s = 0; s < suitNames.length; s++) {
-					temp[s] = rankNames[card.getRank()] + suitNames[s];
 					String tempCard = rankNames[card.getRank()] + suitNames[s];
 					int indicesBasedOnRank = (int) CARD_INDICES_ON_RANK.get(rankNames[card.getRank()] + suitNames[s]);
 
-//					If card from temp array is found then apply PPS and place the card
+					// Check if the card picked is having the same rank as already placed in grid					
 					if (indicesBasedOnRank != -1 && tempCard != card.toString()) {
 						isCardPlaced = proximityPostitionPerSimulation(indicesBasedOnRank, card);
 						break;
@@ -233,7 +231,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				}
 
 				if (!isCardPlaced) {
-					// random - for positon remaning
+					// If same rank card is not postioned. Then place the selected card randmonly
 					int remainingPlays = NUM_POS_IN_GRID - NUM_CARDS_PLAYED_IN_GRID;
 					System.arraycopy(plays_indices, NUM_CARDS_PLAYED_IN_GRID, possibleGridPos[NUM_CARDS_PLAYED_IN_GRID],
 							0, remainingPlays);
@@ -306,14 +304,12 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 	public String getName() {
 		return "RandomMCPlayerDepth" + depthLimit;
 	}
-
+	
+//	‘2P’ (Proximity Positioning) playout policy
 	public boolean proximityPostitionPerSimulation(int indicesBasedOnRank, Card card) {
-//		Main logic PPS
-
 		int row = indicesBasedOnRank / GRIDSIZE;
 		int col = indicesBasedOnRank % GRIDSIZE;
 
-//		PPS formula
 
 		int tcell = row - 1;
 		int bcell = row + 1;
@@ -322,7 +318,8 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 
 		boolean isCardPlaced = false;
 		boolean checkNextAdjacentPostion = true;
-
+		
+        // Check if the topcell for a same rank card is placed
 		if (tcell > 0) {
 			int topcell = ((row - 1) * 5) + col;
 			boolean cardfound = false;
@@ -343,6 +340,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				isCardPlaced = true;
 			}
 		}
+		// Check if the bottomcell for a same rank card is placed
 		if (bcell < 5 && checkNextAdjacentPostion) {
 			int bottomcell = ((row + 1) * 5) + col;
 			boolean cardfound = false;
@@ -365,7 +363,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				isCardPlaced = true;
 			}
 		}
-
+		// Check if the leftcell for a same rank card is placed
 		if (lcell > 0 && checkNextAdjacentPostion) {
 			int leftcell = (row * 5) + (col - 1);
 			boolean cardfound = false;
@@ -388,7 +386,7 @@ public class RandomMCPlayer implements PokerSquaresPlayer {
 				isCardPlaced = true;
 			}
 		}
-
+		// Check if the rightcell for a same rank card is placed
 		if (rcell < 5 && checkNextAdjacentPostion) {
 			int rightcell = (row * 5) + (col + 1);
 			boolean cardfound = false;
